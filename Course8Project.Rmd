@@ -1,0 +1,129 @@
+---
+title: "Course 8 Project"
+author: "H Nell"
+date: "03 January 2018"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Load the necessary libraries
+```{r loadlib, echo = TRUE, include=FALSE}
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(repmis)
+```
+
+##Load the training and testing data sets
+```{r load_train}
+training <- read.csv("C:/MyDocuments/Coursera/Data Science/Course 8 Practical Machine Learning/Project/pml-training.csv", na.strings = c("NA", "")) 
+```
+str(training)
+data.frame':	19622 obs. of  160 variables  
+```{r load_test}
+testing <- read.csv("C:/MyDocuments/Coursera/Data Science/Course 8 Practical Machine Learning/Project/pml-testing.csv", na.strings = c("NA", ""))  
+```
+str(testing)  
+data.frame':	20 obs. of  160 variables:  
+ 
+##Data cleaning: 
+##For both data sets, delete columns that contain any missing values.
+```{r}
+training <- training[, colSums(is.na(training)) == 0]  
+```
+str(training)  
+data.frame':	19622 obs. of  60 variables:  
+```{r}
+testing <- testing[, colSums(is.na(testing)) == 0]  
+```
+str(testing)  
+data.frame':	20 obs. of  60 variables:  
+
+#Since Columns 1 to 7 have no use in predicting the required class, they should also be removed
+```{r}
+trainData <- training[, -c(1:7)]  
+```
+str(trainData)  
+data.frame':	19622 obs. of  53 variables:  
+```{r}
+testData <- testing[, -c(1:7)]  
+```
+str(testData)  
+data.frame':	20 obs. of  53 variables:  
+
+##Split the trainig data into a training set(70%) and a validation set(30%)
+```{r}
+set.seed(33883) #set seed so that results can be reproduced  
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)  
+train <- trainData[inTrain, ]  
+```
+str(train)  
+data.frame':	13737 obs. of  53 variables:  
+```{r}
+valid <- trainData[-inTrain, ]  
+```
+str(valid)  
+data.frame':	5885 obs. of  53 variables:  
+
+##Builing the models
+##No data transformations will be performed since the data for all the predictors looks fine
+##All the variables will be used to predict the outcome
+###A classification tree and random forest will be fitted to predict the outcome
+###Create a trainControl object to specify method="cv" for cross validation, use the default number=10
+###Fit the classification tree model
+```{r}
+controlObj <- trainControl(method = "cv")  
+fit_rpart <- train(classe ~ .,   
+                   data = train,   
+                   method = "rpart",   
+                   trControl = controlObj)  
+print(fit_rpart,digits=4)
+print(fit_rpart$finalModel)
+```
+
+#predict outcomes using the validation set
+```{r}
+predict_rpart <- predict(fit_rpart,valid)
+```
+
+#print predicted values and statistics
+```{r}
+conf_rpart <- confusionMatrix(valid$classe, predict_rpart)
+conf_rpart
+```
+
+#The out of sample error for the classification tree model is 0.51
+
+
+###Fit the random forest (use the same TrainControl object)
+```{r}
+fit_rf <- train(classe ~ .,   
+                data = train,   
+                method = "rf",   
+                trControl = controlObj)  
+print(fit_rf, digits= 4)
+```
+
+#predict outcomes using the validation set
+```{r}
+predict_rf <- predict(fit_rf, valid)
+```
+
+#print predicted values and statistics
+```{r}
+conf_rf <- confusionMatrix(valid$classe, predict_rf)
+conf_rf
+```
+
+#The out of sample error for the random forest model is 0.007
+
+##The random forest model produces the best results, and will be used to predict values
+##for the test set
+```{r}
+pred_test <- predict(fit_rf, testData)
+pred_test
+```
+
